@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-bg text-ink;
+  }
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+  ::selection {
+    background: rgba(88, 101, 242, 0.4);
+  }
+  :focus-visible {
+    outline: 2px solid #7983f5;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Subtle scrollbars that match the surface scale */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2c2f6b transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #2c2f6b;
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Entrance stagger — pair with animate-fade-up; 'both' fill keeps elements hidden until their delay */
+  .anim-delay-1 { animation-delay: 80ms; }
+  .anim-delay-2 { animation-delay: 160ms; }
+  .anim-delay-3 { animation-delay: 240ms; }
+  .anim-delay-4 { animation-delay: 320ms; }
+  .anim-delay-5 { animation-delay: 400ms; }
+
+  /* Blurple glow for primary CTAs and live elements */
+  .glow-accent {
+    box-shadow: 0 0 0 1px rgba(88, 101, 242, 0.35), 0 4px 24px rgba(88, 101, 242, 0.4);
+  }
+  .glow-accent-lg {
+    box-shadow: 0 0 0 1px rgba(88, 101, 242, 0.4), 0 8px 48px rgba(88, 101, 242, 0.55);
+  }
+
+  /* Shimmering skeleton bars (replaces flat pulse) */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05) 25%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.05) 75%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+@layer components {
+  /* Aurora backdrop — Landing only. Blurred drifting color fields behind the content. */
+  .aurora-field {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .aurora-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    will-change: transform;
+  }
+  .aurora-blob-a {
+    width: 55vw;
+    height: 55vw;
+    top: -25vw;
+    right: -12vw;
+    background: radial-gradient(circle at center, rgba(88, 101, 242, 0.3), transparent 65%);
+    @apply animate-aurora-a;
+  }
+  .aurora-blob-b {
+    width: 48vw;
+    height: 48vw;
+    bottom: -20vw;
+    left: -14vw;
+    background: radial-gradient(circle at center, rgba(216, 79, 216, 0.14), transparent 65%);
+    @apply animate-aurora-b;
+  }
+  .aurora-blob-c {
+    width: 36vw;
+    height: 36vw;
+    top: 20vh;
+    left: 8vw;
+    background: radial-gradient(circle at center, rgba(121, 131, 245, 0.12), transparent 65%);
+    animation: auroraB 34s ease-in-out infinite alternate-reverse;
+  }
+
+  /* Discord-style starfield — layered repeating radial dots at different densities */
+  .starfield {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, rgba(255, 255, 255, 0.55), transparent 50%),
+      radial-gradient(1px 1px at 70% 12%, rgba(255, 255, 255, 0.4), transparent 50%),
+      radial-gradient(2px 2px at 85% 45%, rgba(255, 255, 255, 0.35), transparent 50%),
+      radial-gradient(1px 1px at 40% 70%, rgba(255, 255, 255, 0.45), transparent 50%),
+      radial-gradient(1.5px 1.5px at 10% 85%, rgba(255, 255, 255, 0.3), transparent 50%),
+      radial-gradient(1px 1px at 55% 50%, rgba(255, 255, 255, 0.35), transparent 50%);
+    background-size: 520px 520px, 420px 420px, 640px 640px, 480px 480px, 560px 560px, 380px 380px;
+  }
+
+  /* Faint dot grid texture over the page background */
+  .dot-grid {
+    background-image: radial-gradient(rgba(185, 189, 222, 0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
+  }
+
+  /* Cursor spotlight — a soft blurple glow that follows the pointer over a card.
+     The element sets --sx/--sy from a mousemove handler. */
+  .spotlight {
+    position: relative;
+  }
+  .spotlight::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      420px circle at var(--sx, 50%) var(--sy, 50%),
+      rgba(121, 131, 245, 0.14),
+      transparent 65%
+    );
+    opacity: 0;
+    transition: opacity 300ms ease;
+    pointer-events: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .spotlight:hover::after {
+      opacity: 1;
+    }
+  }
+
+  /* Edge fade for the scrolling topic marquee */
+  .marquee-mask {
+    mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  }
+
+  /* Rotating conic ring shown around the AI avatar while it speaks */
+  .speaking-ring {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0%,
+      rgba(88, 101, 242, 0.95) 18%,
+      transparent 40%,
+      transparent 55%,
+      rgba(121, 131, 245, 0.7) 72%,
+      transparent 92%
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 2px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 2px));
+    @apply animate-spin-slow;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .aurora-blob {
+    display: none;
+  }
+}
