@@ -1,4 +1,4 @@
-<img width="1909" height="845" alt="image" src="https://github.com/user-attachments/assets/f5c9a6b9-1778-4b2f-a168-42c911304e04" />
+<img width="1492" height="813" alt="image" src="https://github.com/user-attachments/assets/13bd22b8-303f-459c-aea3-0919d26687f6" />
 
 
 # AI Mock Interview
