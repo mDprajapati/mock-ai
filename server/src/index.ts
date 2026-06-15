@@ -16,6 +16,10 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Cloud hosts (Render, etc.) put the app behind a reverse proxy. Trust the first
+// proxy hop so express-rate-limit keys on the real client IP, not the proxy's.
+app.set('trust proxy', 1);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   // The client embeds the Sandpack editor (CDN + workers), web fonts, and plays
