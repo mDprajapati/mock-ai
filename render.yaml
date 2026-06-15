@@ -13,11 +13,16 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Premium (Claude) mode — set the value in the Render dashboard (secret).
-      # Without it, the deployed app has no working AI mode (Local needs Ollama,
-      # which a cloud server cannot reach).
+      # Premium (Claude) mode — optional. Leave unset to use Local mode (below).
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Local mode is intentionally left unset in the cloud — Ollama runs only
-      # on your own machine. To enable it you'd need a publicly reachable
-      # OpenAI-compatible server and would set LOCAL_AI_BASE_URL here.
+      # Local mode — pointed at Groq's free OpenAI-compatible API so it works in
+      # the cloud (Ollama only runs on your own machine). The adapter appends
+      # /v1/chat/completions to the base URL.
+      - key: LOCAL_AI_BASE_URL
+        value: https://api.groq.com/openai
+      - key: LOCAL_AI_MODEL
+        value: llama-3.3-70b-versatile
+      # Your free Groq key from https://console.groq.com — set in the dashboard.
+      - key: LOCAL_AI_API_KEY
+        sync: false

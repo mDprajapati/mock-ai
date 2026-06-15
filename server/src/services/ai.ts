@@ -27,9 +27,10 @@ export function hasLocalAIUrl(): boolean {
 
 export function getModeInfo() {
   const mode = getMode();
+  const localModel = process.env.LOCAL_AI_MODEL?.trim() || 'Ollama';
   const modelNames: Record<AIMode, string> = {
     claude: 'Claude Sonnet (Anthropic)',
-    local:  'Local — Qwen2.5 7B (Ollama)',
+    local:  `Local — ${localModel}`,
   };
   return {
     mode,
