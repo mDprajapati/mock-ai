@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CodeIcon, SalesIcon, MarketingIcon, ArrowRight, LockIcon } from '../components/icons';
 
+type Mode = 'claude' | 'local';
+
 interface ModeInfo {
-  mode: 'claude' | 'free';
+  mode: Mode;
   model: string;
   requiresKey: boolean;
   claudeKeyAvailable: boolean;
+  localAvailable?: boolean;
 }
 
 const MARQUEE_TOPICS = [
@@ -386,10 +389,10 @@ export default function Landing() {
   useEffect(() => {
     axios.get<ModeInfo>('/api/mode')
       .then(({ data }) => setModeInfo(data))
-      .catch(() => setModeInfo({ mode: 'free', model: 'GPT-4o-mini via Pollinations (Free)', requiresKey: false, claudeKeyAvailable: false }));
+      .catch(() => setModeInfo({ mode: 'local', model: 'Local — Qwen2.5 7B (Ollama)', requiresKey: false, claudeKeyAvailable: false, localAvailable: false }));
   }, []);
 
-  const handleModeChange = async (newMode: 'claude' | 'free') => {
+  const handleModeChange = async (newMode: Mode) => {
     if (!modeInfo || modeInfo.mode === newMode || switching) return;
     setSwitching(true);
     setSwitchError('');
@@ -443,12 +446,12 @@ export default function Landing() {
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium animate-fade-in ${
               modeInfo.mode === 'claude'
                 ? 'bg-white/10 border-white/25 text-ink'
-                : 'bg-emerald-500/15 border-emerald-400/40 text-emerald-200'
+                : 'bg-sky-500/15 border-sky-400/40 text-sky-200'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
-                modeInfo.mode === 'claude' ? 'bg-white' : 'bg-emerald-300'
+                modeInfo.mode === 'claude' ? 'bg-white' : 'bg-sky-300'
               } animate-pulse-slow block`} />
-              {modeInfo.mode === 'claude' ? '✦ Claude (Premium)' : '◈ Free Mode'}
+              {modeInfo.mode === 'claude' ? '✦ Claude (Premium)' : '◆ Local Model'}
             </div>
           )}
         </div>
@@ -634,51 +637,6 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-            {/* ── Free Mode radio ── */}
-            <label
-              className={`relative flex flex-col gap-3 p-4 rounded-2xl border cursor-pointer transition-all duration-200 select-none hover:-translate-y-0.5 ${
-                modeInfo?.mode === 'free'
-                  ? 'border-emerald-400/60 bg-emerald-500/[0.08] shadow-[0_4px_24px_rgba(16,185,129,0.12)]'
-                  : 'border-white/[0.1] bg-white/[0.03] hover:border-white/25'
-              } ${switching ? 'pointer-events-none opacity-60' : ''}`}
-            >
-              <input
-                type="radio"
-                name="ai-mode"
-                value="free"
-                checked={modeInfo?.mode === 'free'}
-                onChange={() => handleModeChange('free')}
-                className="sr-only"
-              />
-
-              <div className="flex items-center justify-between">
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                  modeInfo?.mode === 'free' ? 'border-emerald-400' : 'border-ink-muted/50'
-                }`}>
-                  {modeInfo?.mode === 'free' && (
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pop-in" />
-                  )}
-                </div>
-                <span className="text-xs bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 px-2 py-0.5 rounded-full font-medium">
-                  Free
-                </span>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold mb-0.5">Free Mode</p>
-                <p className="text-xs text-ink-secondary leading-relaxed">GPT-4o-mini via Pollinations.ai — no API key required</p>
-              </div>
-
-              <ul className="space-y-1">
-                {['No setup needed', 'GPT-4o-mini quality', 'Rate-limited'].map((f) => (
-                  <li key={f} className="flex items-center gap-1.5 text-xs text-ink-secondary">
-                    <span className="w-1 h-1 rounded-full bg-emerald-300/70 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </label>
-
             {/* ── Premium (Claude) radio ── */}
             <label
               className={`relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-200 select-none ${
@@ -738,6 +696,66 @@ export default function Landing() {
                 ))}
               </ul>
             </label>
+
+            {/* ── Local model radio ── */}
+            <label
+              className={`relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-200 select-none ${
+                modeInfo?.localAvailable
+                  ? 'cursor-pointer hover:-translate-y-0.5'
+                  : 'cursor-not-allowed opacity-50'
+              } ${
+                modeInfo?.mode === 'local'
+                  ? 'border-sky-400/60 bg-sky-500/[0.1] shadow-[0_4px_24px_rgba(56,189,248,0.2)]'
+                  : 'border-white/[0.1] bg-white/[0.03] hover:border-white/25'
+              } ${switching ? 'pointer-events-none opacity-60' : ''}`}
+            >
+              <input
+                type="radio"
+                name="ai-mode"
+                value="local"
+                checked={modeInfo?.mode === 'local'}
+                onChange={() => handleModeChange('local')}
+                disabled={!modeInfo?.localAvailable}
+                className="sr-only"
+              />
+
+              <div className="flex items-center justify-between">
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  modeInfo?.mode === 'local' ? 'border-sky-400' : 'border-ink-muted/50'
+                }`}>
+                  {modeInfo?.mode === 'local' && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pop-in" />
+                  )}
+                </div>
+                {modeInfo?.localAvailable ? (
+                  <span className="text-xs bg-sky-500/15 border border-sky-400/40 text-sky-200 px-2 py-0.5 rounded-full font-medium">
+                    Local
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs bg-white/[0.06] border border-white/[0.1] text-ink-muted px-2 py-0.5 rounded-full">
+                    <LockIcon /> Setup required
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold mb-0.5">Local Model</p>
+                <p className="text-xs text-ink-secondary leading-relaxed">
+                  {modeInfo?.localAvailable
+                    ? 'Runs a local model via Ollama — private & offline'
+                    : 'Install Ollama, then set LOCAL_AI_BASE_URL in server/.env'}
+                </p>
+              </div>
+
+              <ul className="space-y-1">
+                {['Private & offline', 'Bring your own model', 'No API key needed'].map((f) => (
+                  <li key={f} className="flex items-center gap-1.5 text-xs text-ink-secondary">
+                    <span className="w-1 h-1 rounded-full bg-sky-300/70 flex-shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </label>
           </div>
 
           {/* Switch error */}
@@ -751,7 +769,7 @@ export default function Landing() {
           {/* Active model display */}
           {modeInfo && !switchError && (
             <div className="mt-3 flex items-center gap-2 text-xs text-ink-muted px-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${modeInfo.mode === 'claude' ? 'bg-accent-bright' : 'bg-emerald-300'} animate-pulse-slow block`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${modeInfo.mode === 'claude' ? 'bg-accent-bright' : 'bg-sky-300'} animate-pulse-slow block`} />
               Active: <span className="text-ink-secondary font-medium">{modeInfo.model}</span>
             </div>
           )}

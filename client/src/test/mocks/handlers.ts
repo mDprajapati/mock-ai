@@ -3,10 +3,11 @@ import { http, HttpResponse } from 'msw';
 export const handlers = [
   http.get('/api/mode', () =>
     HttpResponse.json({
-      mode: 'free',
-      model: 'GPT-4o-mini via Pollinations (Free)',
+      mode: 'local',
+      model: 'Local — Qwen2.5 7B (Ollama)',
       requiresKey: false,
       claudeKeyAvailable: false,
+      localAvailable: true,
     }),
   ),
 
@@ -16,6 +17,7 @@ export const handlers = [
       model: 'Claude Sonnet (Anthropic)',
       requiresKey: true,
       claudeKeyAvailable: true,
+      localAvailable: true,
     }),
   ),
 
@@ -35,6 +37,8 @@ export const handlers = [
       ],
     }),
   ),
+
+  http.get('/api/tts/status', () => HttpResponse.json({ available: false })),
 
   http.post('/api/interview/message', () =>
     HttpResponse.json({ question: 'Tell me about yourself.', advancePhase: false }),

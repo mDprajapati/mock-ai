@@ -48,9 +48,8 @@ function buildSystemPrompt(
   candidateAnswersInPhase: number,
   jsExercises?: JSExercise[],
 ): string {
-  const isFree = getMode() === 'free';
-  const cvLimit = isFree ? 2000 : 4000;
-  const jdLimit = isFree ? 1500 : 3000;
+  const cvLimit = 4000;
+  const jdLimit = 3000;
 
   const jdSection = session.jdSkipped
     ? `[Not provided — infer the candidate's target role, tech stack, and relevant topics entirely from their CV above. Tailor all questions to their background.]`
@@ -99,8 +98,7 @@ PHASE 3 — Practical / Coding Round:
 ADVANCE SIGNAL: The candidate has given ${candidateAnswersInPhase} answers in this phase. If you are genuinely satisfied with their overall performance and they have convincingly answered your questions, append exactly " [ADVANCE]" (one space before it) at the very end of your response — after your question. Only signal [ADVANCE] if the quality truly warrants it. Do NOT include [ADVANCE] if the candidate has been vague or unconvincing.`
       : '';
 
-  const fullPrompt = base + phaseGuides[phase] + advanceNote;
-  return isFree ? fullPrompt.slice(0, 5000) : fullPrompt;
+  return base + phaseGuides[phase] + advanceNote;
 }
 
 function buildMessages(transcript: TranscriptEntry[]) {

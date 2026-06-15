@@ -14,75 +14,103 @@ function preprocessForSpeech(text: string): string {
     .trim();
 }
 
-// Indian male voice name patterns (Windows/Edge neural voices, en-IN locale).
-// "Microsoft Ravi" ships with Windows 10/11 when Indian English is installed;
-// "Microsoft Prabhat" is available on newer Edge/Windows builds.
-const INDIAN_MALE_PATTERNS = ['Ravi', 'Prabhat', 'Hemant', 'Kalpana'];
+// Indian male voice name patterns (en-IN locale). "Ravi" ships on Windows 10/11
+// when Indian English is installed; "Prabhat" is the newer Edge/Azure neural one.
+const INDIAN_MALE_PATTERNS = ['Prabhat', 'Ravi', 'Hemant', 'Madhur'];
 
-// Fallback priority when no Indian voice is found.
+// A voice is "natural" (neural) if its name carries these markers. These are the
+// only browser voices that don't sound robotic, so they always win.
+const isNatural = (v: SpeechSynthesisVoice) => /natural|neural|online/i.test(v.name);
+
+// Generic, less-robotic fallbacks (Google network voices first). Deliberately
+// avoids "Microsoft David/Zira Desktop", the most robotic local voices.
 const FALLBACK_VOICE_PRIORITY = [
-  'Microsoft Guy',
-  'Microsoft David',
   'Google UK English Male',
-  'Alex',
-  'Microsoft Aria',
-  'Microsoft Jenny',
   'Google US English',
-  'Microsoft Zira',
+  'Microsoft Guy',
+  'Microsoft Aria',
+  'Alex',
 ];
 
 function pickVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
-  // 1. Prefer Indian English male voices (en-IN locale)
-  const inVoices = voices.filter((v) => v.lang.startsWith('en-IN'));
+  const enVoices = voices.filter((v) => v.lang.startsWith('en'));
+  const inVoices = enVoices.filter((v) => v.lang.startsWith('en-IN'));
+
+  // 1. Best case: a natural/neural Indian voice (e.g. "Microsoft Prabhat Online (Natural)")
+  const naturalIndian = inVoices.find(isNatural);
+  if (naturalIndian) return naturalIndian;
+
+  // 2. Any natural/neural English voice — still far better than a robotic local one
+  const naturalAny = enVoices.find(isNatural);
+  if (naturalAny) return naturalAny;
+
+  // 3. A named Indian male voice (legacy Ravi etc. — robotic but at least Indian)
   for (const pattern of INDIAN_MALE_PATTERNS) {
     const match = inVoices.find((v) => v.name.includes(pattern));
     if (match) return match;
   }
-  // Any en-IN voice as fallback within the locale
+
+  // 4. Any other en-IN voice
   if (inVoices.length > 0) return inVoices[0];
 
-  // 2. Try Indian-named voices in any English locale
-  const enVoices = voices.filter((v) => v.lang.startsWith('en'));
-  for (const pattern of INDIAN_MALE_PATTERNS) {
-    const match = enVoices.find((v) => v.name.includes(pattern));
-    if (match) return match;
-  }
-
-  // 3. Generic English fallback chain
+  // 5. Generic English fallback chain (avoids David/Zira)
   for (const pattern of FALLBACK_VOICE_PRIORITY) {
     const match = enVoices.find((v) => v.name.includes(pattern));
     if (match) return match;
   }
 
+  // 6. Last resort: anything English
   return enVoices.find((v) => v.lang === 'en-US') ?? enVoices[0];
+}
+
+// ── Server-side neural TTS availability (probed once, shared across hooks) ──
+// null = not yet probed, true/false = known. When true we stream natural
+// (Azure) audio; otherwise we fall back to the browser's speechSynthesis.
+let azureAvailable: boolean | null = null;
+let azureProbe: Promise<boolean> | null = null;
+
+function probeAzure(): Promise<boolean> {
+  if (azureAvailable !== null) return Promise.resolve(azureAvailable);
+  if (!azureProbe) {
+    azureProbe = fetch('/api/tts/status')
+      .then((r) => (r.ok ? r.json() : { available: false }))
+      .then((d: { available?: boolean }) => { azureAvailable = !!d.available; return azureAvailable; })
+      .catch(() => { azureAvailable = false; return false; });
+  }
+  return azureProbe;
 }
 
 /* ── Text-to-Speech ── */
 export function useTTS() {
   const [speaking, setSpeaking] = useState(false);
-  const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
+  const reqIdRef = useRef(0); // bumps on every new speak/cancel to void stale async work
 
-  const speak = useCallback((text: string, onEnd?: () => void) => {
-    if (!window.speechSynthesis) {
-      onEnd?.();
-      return;
+  // Probe once on mount so the first interview question can use neural audio.
+  useEffect(() => { void probeAzure(); }, []);
+
+  const cleanup = useCallback(() => {
+    window.speechSynthesis?.cancel();
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch { /* ignore */ }
+      audioRef.current.src = '';
+      audioRef.current = null;
     }
-    window.speechSynthesis.cancel();
+    if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
+  }, []);
 
-    const clean = preprocessForSpeech(text);
+  // Browser speechSynthesis path (fallback / when Azure isn't configured).
+  const speakBrowser = useCallback((clean: string, onEnd?: () => void) => {
+    if (!window.speechSynthesis) { onEnd?.(); return; }
     const u = new SpeechSynthesisUtterance(clean);
-
-    // Hint the browser to use an Indian English voice
     u.lang   = 'en-IN';
-    // Natural human SDE cadence — slightly slower, flat pitch
-    u.rate   = 0.90;
+    u.rate   = 0.95;
     u.pitch  = 0.95;
     u.volume = 1.0;
 
-    // Voices may not be loaded on first call; try again on voiceschanged
     const applyVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const chosen = pickVoice(voices);
+      const chosen = pickVoice(window.speechSynthesis.getVoices());
       if (chosen) u.voice = chosen;
     };
     applyVoice();
@@ -93,17 +121,62 @@ export function useTTS() {
     u.onstart = () => setSpeaking(true);
     u.onend   = () => { setSpeaking(false); onEnd?.(); };
     u.onerror = () => { setSpeaking(false); onEnd?.(); };
-
-    utterRef.current = u;
     window.speechSynthesis.speak(u);
   }, []);
 
-  const cancel = useCallback(() => {
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
-  }, []);
+  // Neural (Azure) path — fetch MP3 from the server and play it. Falls back to
+  // the browser voice on any failure so the interview never goes silent.
+  const playAzure = useCallback(async (clean: string, onEnd: (() => void) | undefined, myId: number) => {
+    let settled = false;
+    const settle = (cb?: () => void) => { if (settled) return; settled = true; cb?.(); };
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean }),
+      });
+      if (myId !== reqIdRef.current) return;
+      if (!res.ok) throw new Error(`tts ${res.status}`);
+      const blob = await res.blob();
+      if (myId !== reqIdRef.current) return;
 
-  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      urlRef.current = url;
+      const revoke = () => { if (urlRef.current === url) { URL.revokeObjectURL(url); urlRef.current = null; } };
+
+      audio.onplay  = () => { if (myId === reqIdRef.current) setSpeaking(true); };
+      audio.onended = () => settle(() => { revoke(); if (myId === reqIdRef.current) setSpeaking(false); onEnd?.(); });
+      audio.onerror = () => settle(() => { revoke(); if (myId === reqIdRef.current) speakBrowser(clean, onEnd); });
+      await audio.play();
+    } catch {
+      settle(() => { if (myId === reqIdRef.current) speakBrowser(clean, onEnd); });
+    }
+  }, [speakBrowser]);
+
+  const speak = useCallback((text: string, onEnd?: () => void) => {
+    const clean = preprocessForSpeech(text);
+    cleanup();
+    const myId = ++reqIdRef.current;
+
+    if (azureAvailable === true) {
+      void playAzure(clean, onEnd, myId);
+    } else {
+      // false or not-yet-probed → use the browser voice immediately (never block
+      // on the network), and kick off a probe so later turns can upgrade.
+      speakBrowser(clean, onEnd);
+      if (azureAvailable === null) void probeAzure();
+    }
+  }, [cleanup, playAzure, speakBrowser]);
+
+  const cancel = useCallback(() => {
+    reqIdRef.current++;
+    cleanup();
+    setSpeaking(false);
+  }, [cleanup]);
+
+  useEffect(() => () => { reqIdRef.current++; cleanup(); }, [cleanup]);
 
   return { speak, cancel, speaking };
 }

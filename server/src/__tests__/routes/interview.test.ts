@@ -19,7 +19,7 @@ const session = {
 };
 
 beforeEach(() => {
-  mockGetMode.mockReturnValue('free');
+  mockGetMode.mockReturnValue('local');
   mockChatAI.mockResolvedValue('What is your experience with React?');
 });
 
@@ -169,25 +169,6 @@ describe('POST /api/interview/message', () => {
     expect(capturedSystem).not.toContain('ADVANCE SIGNAL');
   });
 
-  it('free mode truncates full prompt to 5000 chars', async () => {
-    mockGetMode.mockReturnValue('free');
-    const longCv = 'x'.repeat(5000);
-    const longJd = 'y'.repeat(5000);
-    let capturedSystem = '';
-    mockChatAI.mockImplementation(async (sys: string) => {
-      capturedSystem = sys;
-      return 'Q?';
-    });
-    await request(app)
-      .post('/api/interview/message')
-      .send({
-        session: { ...session, cvText: longCv, jdText: longJd },
-        transcript: [],
-        phase: 1,
-      });
-    expect(capturedSystem.length).toBeLessThanOrEqual(5000);
-  });
-
   it('buildMessages returns seed message for empty transcript', async () => {
     let capturedMessages: any[] = [];
     mockChatAI.mockImplementation(async (_sys: string, msgs: any[]) => {
@@ -265,8 +246,7 @@ describe('POST /api/interview/message', () => {
     expect(capturedSystem).toContain("candidate's CV background");
   });
 
-  it('non-free mode uses larger cv/jd limits (no truncation)', async () => {
-    mockGetMode.mockReturnValue('claude');
+  it('builds the full system prompt without truncation', async () => {
     let capturedSystem = '';
     mockChatAI.mockImplementation(async (sys: string) => {
       capturedSystem = sys;
@@ -276,9 +256,7 @@ describe('POST /api/interview/message', () => {
       .post('/api/interview/message')
       .send({ session, transcript: [], phase: 1 });
     expect(res.status).toBe(200);
-    // For claude mode, fullPrompt is NOT sliced to 5000 chars
     expect(capturedSystem.length).toBeGreaterThan(0);
-    // System prompt should NOT be artificially truncated
     expect(capturedSystem).toContain('CANDIDATE PROFILE');
   });
 

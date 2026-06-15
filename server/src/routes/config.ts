@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getModeInfo, setMode, hasClaudeKey, hasGroqKey, AIMode } from '../services/ai';
+import { getModeInfo, setMode, hasClaudeKey, hasLocalAIUrl, AIMode } from '../services/ai';
 
 const router = Router();
 
@@ -10,21 +10,21 @@ router.get('/mode', (_req: Request, res: Response) => {
 router.post('/mode', (req: Request, res: Response): void => {
   const { mode } = req.body as { mode: AIMode };
 
-  if (mode !== 'claude' && mode !== 'groq' && mode !== 'free') {
-    res.status(400).json({ error: 'Invalid mode. Must be "claude", "groq", or "free".' });
+  if (mode !== 'claude' && mode !== 'local') {
+    res.status(400).json({ error: 'Invalid mode. Must be "claude" or "local".' });
     return;
   }
 
   if (mode === 'claude' && !hasClaudeKey()) {
     res.status(400).json({
-      error: 'ANTHROPIC_API_KEY is not configured in server/.env. Add your key to enable Claude mode.',
+      error: 'ANTHROPIC_API_KEY is not configured in server/.env. Add your key to enable Premium (Claude) mode.',
     });
     return;
   }
 
-  if (mode === 'groq' && !hasGroqKey()) {
+  if (mode === 'local' && !hasLocalAIUrl()) {
     res.status(400).json({
-      error: 'GROQ_API_KEY is not configured in server/.env. Add your free key from console.groq.com.',
+      error: 'LOCAL_AI_BASE_URL is not configured in server/.env. Point it at your local model server (e.g. Ollama at http://localhost:11434) to enable this mode.',
     });
     return;
   }

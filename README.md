@@ -13,13 +13,13 @@ A full-stack AI-powered technical mock interview platform. Conduct realistic, vo
   - Phase 1 — Introduction & Career (10 min): background, experience, and motivation
   - Phase 2 — Theory & Technical (25 min): live JavaScript coding exercises in a browser-embedded editor
   - Phase 3 — Practical / Coding (30 min): open-ended problem solving with optional screen sharing
-- **Three AI engine options** — Claude (Anthropic), Groq (Llama), or a fully free Pollinations tier — switchable live from the UI without restarting
-- **Voice-driven interface** — AI speaks questions via TTS; answer with Speech-to-Text or typed input fallback
+- **Two AI engine options** — **Premium** (Anthropic Claude) or **Local** (Ollama, runs on your machine) — switchable live from the UI without restarting
+- **Voice-driven interface** — AI speaks questions via neural TTS (Azure, with browser fallback); answer with Speech-to-Text or typed input
 - **CV + JD personalisation** — questions tailored to your uploaded CV and the target job description
 - **Live code editor** — Sandpack-powered JavaScript environment with instant execution in Phase 2
 - **Adaptive follow-ups** — AI adjusts questions based on your actual answers
 - **Performance report** — overall score, per-phase breakdown, strengths, and improvement areas
-- **Security** — Helmet headers, CORS whitelist, rate limiting (30 req/min on AI routes), all API keys server-side only
+- **Security** — Helmet headers, CORS whitelist, rate limiting on AI routes, all API keys server-side only
 
 ---
 
@@ -29,17 +29,31 @@ A full-stack AI-powered technical mock interview platform. Conduct realistic, vo
 |---|---|
 | Frontend | React 18, React Router v6, Tailwind CSS, Vite |
 | Backend | Express.js, TypeScript, ts-node |
-| AI providers | Anthropic Claude Sonnet, Groq Llama 3.3 70B, Pollinations (free) |
+| AI providers | Anthropic Claude Sonnet (Premium) · Ollama / OpenAI-compatible (Local) |
+| Voice | Azure Neural TTS (`en-IN-PrabhatNeural`) with browser `speechSynthesis` fallback |
 | Code editor | CodeSandbox Sandpack |
 | UI testing | Vitest, React Testing Library, MSW, jsdom |
 | API testing | Jest, Supertest, ts-jest |
 
 ---
 
+## AI Engine Modes
+
+| Mode | Engine | Key / requirement | Notes |
+|---|---|---|---|
+| **Premium** | Claude Sonnet (Anthropic) | `ANTHROPIC_API_KEY` | Best quality, paid API |
+| **Local** | Ollama (`qwen2.5:7b` by default) | Ollama running locally | Free, private, offline; slower without a GPU |
+
+Each mode's card unlocks automatically once its requirement is configured. You need **at least one** of the two. Switch the active engine from the **Landing page → AI Engine section** without restarting the server.
+
+---
+
 ## Prerequisites
 
-- Node.js 18+
-- An API key is **optional** — the free Pollinations tier works with no configuration. For better quality, supply an Anthropic or Groq key.
+- **Node.js** 18+ and npm
+- **For Local mode:** [Ollama](https://ollama.com/download) installed and running
+- **For Premium mode:** an [Anthropic API key](https://console.anthropic.com/)
+- **Optional (natural voice):** an [Azure Speech](https://portal.azure.com/) resource (free F0 tier). Without it the interviewer uses the browser's built-in voice.
 
 ---
 
@@ -60,7 +74,20 @@ npm run install:all
 
 This installs packages for the root, `client/`, and `server/` in one step.
 
-### 3. Configure environment
+### 3. Set up the Local mode engine (Ollama)
+
+Skip this if you only want Premium (Claude) mode.
+
+1. Install Ollama from https://ollama.com/download — it runs as a background service on `http://localhost:11434`.
+2. Pull the interviewer model:
+
+   ```bash
+   ollama pull qwen2.5:7b
+   ```
+
+   > `qwen2.5:7b` is the recommended default. On a machine **without a GPU** it runs but is slow (a few tokens/sec). For a faster, lighter option: `ollama pull llama3.2:3b` and set `LOCAL_AI_MODEL=llama3.2:3b`.
+
+### 4. Configure environment
 
 ```bash
 cp .env.example server/.env
@@ -69,17 +96,29 @@ cp .env.example server/.env
 Edit `server/.env`:
 
 ```env
-# Optional — leave blank to use the free AI tier
+# Premium mode — Anthropic Claude (leave blank to use Local mode only)
 ANTHROPIC_API_KEY=sk-ant-...your-key...
-GROQ_API_KEY=gsk_...your-key...
 
-PORT=3001
+# Local mode — Ollama (OpenAI-compatible). Adapter appends /v1/chat/completions.
+LOCAL_AI_BASE_URL=http://localhost:11434
+LOCAL_AI_API_KEY=
+LOCAL_AI_MODEL=qwen2.5:7b
+
+PORT=4001
 NODE_ENV=development
+
+# Optional — natural Indian-English voice via Azure Speech.
+# Leave AZURE_SPEECH_KEY blank to use the browser's built-in voice.
+AZURE_SPEECH_KEY=
+AZURE_SPEECH_REGION=
+AZURE_SPEECH_VOICE=en-IN-PrabhatNeural
 ```
 
-> **AI mode priority on startup:** Claude (if `ANTHROPIC_API_KEY` present) → Groq (if `GROQ_API_KEY` present) → Free Pollinations. Switch modes live from the Landing page at any time.
+> **Mode auto-detection on startup:** Premium (if `ANTHROPIC_API_KEY` present) → otherwise Local. You can switch live from the Landing page.
+>
+> **Never commit `server/.env`** — it holds secrets and is git-ignored.
 
-### 4. Start the application
+### 5. Start the application
 
 ```bash
 npm run dev
@@ -88,31 +127,36 @@ npm run dev
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:5174 |
-| Backend API | http://localhost:3001 |
+| Backend API | http://localhost:4001 |
+
+Open the **frontend** URL in your browser.
 
 ---
 
-## AI Engine Modes
+## Build (production)
 
-| Mode | Model | Key Required | Notes |
-|---|---|---|---|
-| **Claude** | claude-sonnet-4-6 | `ANTHROPIC_API_KEY` | Best quality |
-| **Groq** | llama-3.3-70b-versatile | `GROQ_API_KEY` | Fast, free tier available |
-| **Free** | Pollinations (openai / mistral / llama) | None | No key needed, slower |
+```bash
+npm run build                  # builds server (tsc) + client (vite)
+npm run start --prefix server  # serves the compiled API from server/dist
+```
 
-Switch the active engine from the **Landing page → AI Engine section** without restarting the server.
+The built client lives in `client/dist/` — serve it statically or behind a reverse proxy in front of the API.
+
+---
 
 ## Running Tests
 
 ```bash
 # Client — Vitest
-cd client
-npm test                  # single run
-npm run test:coverage     # with coverage report
+cd client && npm test            # single run  (npm run test:coverage for coverage)
 
 # Server — Jest
-cd server
-npm test                  # single run
-npm run test:coverage     # with coverage report
-
+cd server && npm test            # single run  (npm run test:coverage for coverage)
 ```
+
+---
+
+## Notes
+
+- **Local mode runs on the same machine as the server.** If you deploy the server to the cloud, Local mode only works when `LOCAL_AI_BASE_URL` points to a reachable OpenAI-compatible model server — a cloud server cannot reach an Ollama instance on your laptop.
+- **Voice:** neural TTS is used when Azure is configured; otherwise the browser's `speechSynthesis`. Speech-to-text uses the browser Web Speech API (best in Chrome/Edge).

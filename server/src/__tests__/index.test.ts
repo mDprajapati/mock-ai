@@ -4,16 +4,16 @@ import { app } from '../index';
 // Mock all AI services so the test never hits real APIs
 jest.mock('../services/ai', () => ({
   getModeInfo: jest.fn(() => ({
-    mode: 'free',
-    model: 'GPT-4o-mini',
+    mode: 'local',
+    model: 'Local — Qwen2.5 7B (Ollama)',
     requiresKey: false,
     claudeKeyAvailable: false,
-    groqKeyAvailable: false,
+    localAvailable: true,
   })),
   setMode: jest.fn(),
   hasClaudeKey: jest.fn(() => false),
-  hasGroqKey: jest.fn(() => false),
-  getMode: jest.fn(() => 'free'),
+  hasLocalAIUrl: jest.fn(() => true),
+  getMode: jest.fn(() => 'local'),
   chatAI: jest.fn().mockResolvedValue('test response'),
   evaluateAI: jest.fn().mockResolvedValue('{}'),
 }));

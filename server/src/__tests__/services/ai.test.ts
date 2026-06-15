@@ -1,21 +1,16 @@
 const mockClaudeChat = jest.fn();
 const mockClaudeEvaluate = jest.fn();
-const mockGroqChat = jest.fn();
-const mockGroqEvaluate = jest.fn();
-const mockChatFree = jest.fn();
+const mockLocalChat = jest.fn();
+const mockLocalEvaluate = jest.fn();
 
 jest.mock('../../services/claude', () => ({
   chat: mockClaudeChat,
   evaluate: mockClaudeEvaluate,
 }));
 
-jest.mock('../../services/groq', () => ({
-  chat: mockGroqChat,
-  evaluate: mockGroqEvaluate,
-}));
-
-jest.mock('../../services/freeAI', () => ({
-  chatFree: mockChatFree,
+jest.mock('../../services/localAI', () => ({
+  chat: mockLocalChat,
+  evaluate: mockLocalEvaluate,
 }));
 
 describe('ai service', () => {
@@ -25,12 +20,11 @@ describe('ai service', () => {
     jest.resetModules();
     process.env = { ...OLD_ENV };
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.GROQ_API_KEY;
+    delete process.env.LOCAL_AI_BASE_URL;
     mockClaudeChat.mockReset();
     mockClaudeEvaluate.mockReset();
-    mockGroqChat.mockReset();
-    mockGroqEvaluate.mockReset();
-    mockChatFree.mockReset();
+    mockLocalChat.mockReset();
+    mockLocalEvaluate.mockReset();
   });
 
   afterAll(() => { process.env = OLD_ENV; });
@@ -41,23 +35,17 @@ describe('ai service', () => {
     expect(getMode()).toBe('claude');
   });
 
-  it('getMode auto-detects "groq" when only GROQ_API_KEY is set', async () => {
-    process.env.GROQ_API_KEY = 'key';
+  it('getMode returns "local" when no key is set', async () => {
     const { getMode } = await import('../../services/ai');
-    expect(getMode()).toBe('groq');
-  });
-
-  it('getMode returns "free" when no keys are set', async () => {
-    const { getMode } = await import('../../services/ai');
-    expect(getMode()).toBe('free');
+    expect(getMode()).toBe('local');
   });
 
   it('setMode overrides auto-detection', async () => {
     const { getMode, setMode } = await import('../../services/ai');
     setMode('claude');
     expect(getMode()).toBe('claude');
-    setMode('free');
-    expect(getMode()).toBe('free');
+    setMode('local');
+    expect(getMode()).toBe('local');
   });
 
   it('hasClaudeKey returns true when key is set', async () => {
@@ -71,15 +59,15 @@ describe('ai service', () => {
     expect(hasClaudeKey()).toBe(false);
   });
 
-  it('hasGroqKey returns true when key is set', async () => {
-    process.env.GROQ_API_KEY = 'key';
-    const { hasGroqKey } = await import('../../services/ai');
-    expect(hasGroqKey()).toBe(true);
+  it('hasLocalAIUrl returns true when base URL is set', async () => {
+    process.env.LOCAL_AI_BASE_URL = 'http://localhost:11434';
+    const { hasLocalAIUrl } = await import('../../services/ai');
+    expect(hasLocalAIUrl()).toBe(true);
   });
 
-  it('hasGroqKey returns false when key is absent', async () => {
-    const { hasGroqKey } = await import('../../services/ai');
-    expect(hasGroqKey()).toBe(false);
+  it('hasLocalAIUrl returns false when base URL is absent', async () => {
+    const { hasLocalAIUrl } = await import('../../services/ai');
+    expect(hasLocalAIUrl()).toBe(false);
   });
 
   it('getModeInfo returns requiresKey=true for claude mode', async () => {
@@ -91,11 +79,11 @@ describe('ai service', () => {
     expect(info.model).toContain('Claude');
   });
 
-  it('getModeInfo returns requiresKey=false for free mode', async () => {
+  it('getModeInfo returns requiresKey=false for local mode', async () => {
     const { getModeInfo } = await import('../../services/ai');
     const info = getModeInfo();
     expect(info.requiresKey).toBe(false);
-    expect(info.mode).toBe('free');
+    expect(info.mode).toBe('local');
   });
 
   it('chatAI delegates to claudeChat in claude mode', async () => {
@@ -107,22 +95,12 @@ describe('ai service', () => {
     expect(result).toBe('claude response');
   });
 
-  it('chatAI delegates to groqChat in groq mode', async () => {
-    process.env.GROQ_API_KEY = 'key';
-    mockGroqChat.mockResolvedValue('groq response');
-    const { chatAI, setMode } = await import('../../services/ai');
-    setMode('groq');
-    const result = await chatAI('sys', []);
-    expect(mockGroqChat).toHaveBeenCalled();
-    expect(result).toBe('groq response');
-  });
-
-  it('chatAI delegates to chatFree in free mode', async () => {
-    mockChatFree.mockResolvedValue('free response');
+  it('chatAI delegates to localChat in local mode', async () => {
+    mockLocalChat.mockResolvedValue('local response');
     const { chatAI } = await import('../../services/ai');
     const result = await chatAI('sys', []);
-    expect(mockChatFree).toHaveBeenCalled();
-    expect(result).toBe('free response');
+    expect(mockLocalChat).toHaveBeenCalledWith('sys', []);
+    expect(result).toBe('local response');
   });
 
   it('evaluateAI delegates to claudeEvaluate in claude mode', async () => {
@@ -134,22 +112,11 @@ describe('ai service', () => {
     expect(result).toBe('claude eval');
   });
 
-  it('evaluateAI in free mode slices combinedSystem to 5000 chars', async () => {
-    const longPrompt = 'x'.repeat(6000);
-    mockChatFree.mockResolvedValue('free eval');
+  it('evaluateAI delegates to localEvaluate in local mode', async () => {
+    mockLocalEvaluate.mockResolvedValue('local eval');
     const { evaluateAI } = await import('../../services/ai');
-    await evaluateAI(longPrompt, 'user');
-    const calledSystem: string = mockChatFree.mock.calls[0][0];
-    expect(calledSystem.length).toBeLessThanOrEqual(5000);
-  });
-
-  it('evaluateAI delegates to groqEvaluate in groq mode', async () => {
-    process.env.GROQ_API_KEY = 'key';
-    mockGroqEvaluate.mockResolvedValue('groq eval');
-    const { evaluateAI, setMode } = await import('../../services/ai');
-    setMode('groq');
     const result = await evaluateAI('sys', 'user');
-    expect(mockGroqEvaluate).toHaveBeenCalledWith('sys', 'user');
-    expect(result).toBe('groq eval');
+    expect(mockLocalEvaluate).toHaveBeenCalledWith('sys', 'user');
+    expect(result).toBe('local eval');
   });
 });

@@ -31,17 +31,17 @@ describe('Landing', () => {
     expect(comingSoon.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('shows free mode badge after fetching mode', async () => {
+  it('shows local mode badge after fetching mode', async () => {
     renderLanding();
     await waitFor(() =>
-      expect(screen.getByText('◈ Free Mode')).toBeInTheDocument(),
+      expect(screen.getByText('◆ Local Model')).toBeInTheDocument(),
     );
   });
 
   it('shows active model name after mode fetch', async () => {
     renderLanding();
     await waitFor(() =>
-      expect(screen.getByText(/Pollinations/)).toBeInTheDocument(),
+      expect(screen.getByText(/Ollama/)).toBeInTheDocument(),
     );
   });
 
@@ -50,17 +50,17 @@ describe('Landing', () => {
     expect(screen.getByText('Start Interview')).toBeInTheDocument();
   });
 
-  it('falls back to free mode when API call fails', async () => {
+  it('falls back to local mode when API call fails', async () => {
     server.use(http.get('/api/mode', () => HttpResponse.error()));
     renderLanding();
     await waitFor(() =>
-      expect(screen.getByText('◈ Free Mode')).toBeInTheDocument(),
+      expect(screen.getByText('◆ Local Model')).toBeInTheDocument(),
     );
   });
 
-  it('renders Free Mode radio option', () => {
+  it('renders Local Model radio option', () => {
     renderLanding();
-    expect(screen.getByText('Free Mode')).toBeInTheDocument();
+    expect(screen.getByText('Local Model')).toBeInTheDocument();
   });
 
   it('renders Premium Claude radio option', () => {
@@ -76,7 +76,7 @@ describe('Landing', () => {
   it('shows "Key required" badge when claudeKeyAvailable is false', async () => {
     // default handler returns claudeKeyAvailable: false
     renderLanding();
-    await waitFor(() => screen.getByText('◈ Free Mode'));
+    await waitFor(() => screen.getByText('◆ Local Model'));
     expect(screen.getByText(/Key required/)).toBeInTheDocument();
   });
 });
