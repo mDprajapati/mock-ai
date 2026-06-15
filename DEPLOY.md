@@ -27,7 +27,7 @@ use [Render](https://render.com) (free tier), but any Node host works.
 2. In Render: **New → Blueprint**.
 3. Connect your repo. Render reads [`render.yaml`](render.yaml) and proposes a web
    service named `mock-interview` with:
-   - **Build:** `npm run install:all && npm run build`
+   - **Build:** `npm install --include=dev && npm install --include=dev --prefix server && npm install --include=dev --prefix client && npm run build`
    - **Start:** `npm run start --prefix server`
 4. Click **Apply**. The service is created.
 5. Open the service → **Environment** → add a secret:
@@ -41,7 +41,7 @@ use [Render](https://render.com) (free tier), but any Node host works.
 1. Render: **New → Web Service**, connect your repo.
 2. Settings:
    - **Runtime:** Node
-   - **Build Command:** `npm run install:all && npm run build`
+   - **Build Command:** `npm install --include=dev && npm install --include=dev --prefix server && npm install --include=dev --prefix client && npm run build`
    - **Start Command:** `npm run start --prefix server`
 3. **Environment variables:**
    - `NODE_ENV` = `production`

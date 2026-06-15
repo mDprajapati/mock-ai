@@ -5,7 +5,10 @@ services:
     name: mock-interview
     runtime: node
     plan: free
-    buildCommand: npm run install:all && npm run build
+    # NODE_ENV=production (set below) makes `npm install` skip devDependencies,
+    # but the build tools (tsc, vite, tailwind) live there — so force them in
+    # with --include=dev, then build.
+    buildCommand: npm install --include=dev && npm install --include=dev --prefix server && npm install --include=dev --prefix client && npm run build
     startCommand: npm run start --prefix server
     envVars:
       - key: NODE_ENV
